@@ -1,0 +1,7 @@
+[package]
+name = "auth_server_structs"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+serde = { workspace = true }

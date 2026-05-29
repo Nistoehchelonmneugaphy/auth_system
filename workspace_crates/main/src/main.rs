@@ -96,12 +96,7 @@ async fn route(
 pub struct APIPrefix(String);
 #[derive(Debug, Clone, derive_more::Display, From, Into, FromStr, Deref, DerefMut)]
 pub struct APIAction(String);
-#[derive(Debug, EnumString, strum::Display, IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
-pub enum PublicAPIActionName {
-    Login,
-    VerifySessionToken,
-}
+
 pub enum InternalAPIAction {
     AddSubscribedUser,
     DeleteSubscribedUser,

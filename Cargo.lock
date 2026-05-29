@@ -57,6 +57,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "auth_server_structs"
+version = "0.0.1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
