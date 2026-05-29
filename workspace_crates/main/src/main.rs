@@ -42,5 +42,7 @@ async fn route(
     server_config: ServerConfig,
     app_config: AppConfig,
 ) -> HttpResponseData {
-    ok_html("content".to_string())
+    let headers = request_data.headers.clone();
+    let path = request_data.path.clone();
+    ok_html(format!("Headers: {headers:#?}, <br> Path: {path:#?} <br>"))
 }
