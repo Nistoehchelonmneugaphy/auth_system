@@ -44,5 +44,76 @@ async fn route(
 ) -> HttpResponseData {
     let headers = request_data.headers.clone();
     let path = request_data.path.clone();
-    ok_html(format!("Headers: {headers:#?}, <br> Path: {path:#?} <br>"))
+
+    let parts = parse_path(&path);
+    let ParsedPath { prefix, action } = match parts {
+        Some(p) => p,
+        None => {
+            return ok_html("Invalid request...".to_string());
+        }
+    };
+
+    match prefix.as_str() {
+        "public" => {
+            return handle_public_api_call(
+                action,
+                request_data.clone(),
+                db_pool.clone(),
+                server_config.clone(),
+                app_config.clone(),
+            )
+            .await;
+        }
+        p if p == app_config.secret_api_prefix => {
+            return handle_secret_api_call(
+                action,
+                request_data.clone(),
+                db_pool.clone(),
+                server_config.clone(),
+                app_config.clone(),
+            )
+            .await;
+        }
+        _ => {
+            println!("Prefix part is {prefix} and it is unknown");
+            return ok_html("Invalid request...".to_string());
+        }
+    }
+
+    todo!();
+    // ok_html(format!("Headers: {headers:#?}, <br> Path: {path:#?} <br>"))
+}
+
+#[derive(Debug, Clone)]
+struct ParsedPath {
+    prefix: String,
+    action: String,
+}
+fn parse_path(path: &str) -> Option<ParsedPath> {
+    let parts: Vec<&str> = path.trim_start_matches("/").splitn(2, '/').collect();
+    match parts.as_slice() {
+        [prefix, action] => Some(ParsedPath {
+            prefix: prefix.to_string(),
+            action: action.to_string(),
+        }),
+        _ => None,
+    }
+}
+async fn handle_public_api_call(
+    action: String,
+    request_data: HttpRequestData,
+    db_pool: Pool<Postgres>,
+    server_config: ServerConfig,
+    app_config: AppConfig,
+) -> HttpResponseData {
+    todo!();
+}
+async fn handle_secret_api_call(
+    action: String,
+    request_data: HttpRequestData,
+    db_pool: Pool<Postgres>,
+    server_config: ServerConfig,
+    app_config: AppConfig,
+) -> HttpResponseData {
+    todo!();
 }
