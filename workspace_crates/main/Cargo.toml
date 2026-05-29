@@ -6,4 +6,6 @@ edition = "2024"
 [dependencies]
 dotenvy = "0.15.7"
 server = { workspace = true }
+sqlx = { workspace = true }
+app_config = { workspace = true }
 tokio = { version = "1.52.3", features = ["full", "tracing"] }

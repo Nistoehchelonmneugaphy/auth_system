@@ -4,6 +4,9 @@ members = ["workspace_crates/*"]
 
 [workspace.dependencies]
 server = { git = "ssh://git@github.com/Aeroel/server_2_only.git"}
+app_config = { path = "workspace_crates/app_config" }
+serde = "1.0.228"
+sqlx = { version = "0.9.0", features = ["migrate", "postgres", "macros", "runtime-tokio", "time", "tls-rustls-aws-lc-rs"] }
 
 [workspace.package]
 version = "0.0.1"
