@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use auth_server_structs::PublicAPIAction;
+use auth_server_structs::public_api::PublicAPIAction;
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
@@ -49,7 +49,7 @@ async fn route(
     let path = request_data.path.clone();
 
     let parts = parse_path(&path);
-    let APIPath { prefix , action} = match parts {
+    let APIPath { prefix, action } = match parts {
         Some(p) => p,
         None => {
             return ok_html("Invalid request...".to_string());
@@ -62,7 +62,7 @@ async fn route(
                 Err(e) => {
                     println!("Could not parse action {action:#?}: {e:#?}");
                     return ok_html("Invalid action".to_string());
-                },
+                }
             };
             return handle_public_api_call(
                 public_action,
@@ -74,7 +74,10 @@ async fn route(
             .await;
         }
         p if p == app_config.secret_api_prefix => {
-            let api_key_valid = verify_api_key(headers.get("x-api-key").unwrap_or_default().to_owned(), app_config.api_key.clone());
+            let api_key_valid = verify_api_key(
+                headers.get("x-api-key").unwrap_or_default().to_owned(),
+                app_config.api_key.clone(),
+            );
             if !api_key_valid {
                 return ok_html("Invalid API key".to_string());
             }
@@ -102,7 +105,6 @@ pub struct APIPrefix(String);
 #[derive(Debug, Clone, derive_more::Display, From, Into, FromStr, Deref, DerefMut)]
 pub struct APIAction(String);
 
-
 #[derive(Debug, Clone)]
 struct APIPath {
     prefix: APIPrefix,
@@ -127,23 +129,30 @@ async fn handle_public_api_call(
 ) -> HttpResponseData {
     match public_action {
         PublicAPIAction::Login => {
-            let req:  auth_server_structs::PublicAPILoginRequest = match serde_json::from_slice(&request_data.body_bytes) {
-                Ok(r) => r,
-                Err(e) => {
-                    println!("{e:#?}");
-                    return ok_html("Could not parse the request".to_string());
-                },
-            };
-            
-        },
+            let req: auth_server_structs::public_api::LoginRequest =
+                match serde_json::from_slice(&request_data.body_bytes) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        println!("{e:#?}");
+                        return ok_html("Could not parse the request".to_string());
+                    }
+                };
+            todo!()
+        }
         PublicAPIAction::VerifySessionToken => {
-            
-        },
+            let req: auth_server_structs::public_api::VerifySessionTokenRequest =
+                match serde_json::from_slice(&request_data.body_bytes) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        println!("{e:#?}");
+                        return ok_html("Could not parse the request".to_string());
+                    }
+                };
+            todo!()
+        }
     }
-    todo!()
 }
 async fn handle_internal_api_call(
-
     request_data: HttpRequestData,
     db_pool: Pool<Postgres>,
     server_config: ServerConfig,
