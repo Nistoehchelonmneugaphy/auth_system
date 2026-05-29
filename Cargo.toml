@@ -1,6 +1,9 @@
-[package]
-name = "auth_server"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = ["workspace_crates/*"]
 
-[dependencies]
+[workspace.dependencies]
+server = { git = "ssh://git@github.com/Aeroel/server_2_only.git"}
+
+[workspace.package]
+version = "0.0.1"
