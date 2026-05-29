@@ -5,9 +5,12 @@ edition = "2024"
 
 [dependencies]
 dotenvy = "0.15.7"
+serde = { workspace = true }
+serde_json = { workspace = true }
 server = { workspace = true }
 sqlx = { workspace = true }
 app_config = { workspace = true }
 tokio = { version = "1.52.3", features = ["full", "tracing"] }
 derive_more = { workspace = true }
 strum = { workspace = true }
+auth_server_structs = { workspace = true }

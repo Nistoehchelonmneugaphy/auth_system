@@ -61,6 +61,7 @@ name = "auth_server_structs"
 version = "0.0.1"
 dependencies = [
  "serde",
+ "strum",
 ]
 
 [[package]]
@@ -1000,8 +1001,11 @@ name = "main"
 version = "0.0.1"
 dependencies = [
  "app_config",
+ "auth_server_structs",
  "derive_more",
  "dotenvy",
+ "serde",
+ "serde_json",
  "server",
  "sqlx",
  "strum",
