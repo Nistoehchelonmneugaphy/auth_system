@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 
+use strum::{EnumString, IntoStaticStr};
+use derive_more::{Deref, DerefMut, From, FromStr, Into};
+
 use app_config::AppConfig;
 use server::{
     BackgroundSpawnTasks,
@@ -46,17 +49,23 @@ async fn route(
     let path = request_data.path.clone();
 
     let parts = parse_path(&path);
-    let ParsedPath { prefix, action } = match parts {
+    let APIPath { prefix, action } = match parts {
         Some(p) => p,
         None => {
             return ok_html("Invalid request...".to_string());
         }
     };
-
     match prefix.as_str() {
         "public" => {
+            let public_action = match action.parse() {
+                Ok(pa) => pa,
+                Err(e) => {
+                    println!("ParseError: {e:#?}");
+                    return ok_html("Invalid action".to_string());
+                }
+            };
             return handle_public_api_call(
-                action,
+                public_action,
                 request_data.clone(),
                 db_pool.clone(),
                 server_config.clone(),
@@ -75,41 +84,60 @@ async fn route(
             .await;
         }
         _ => {
-            println!("Prefix part is {prefix} and it is unknown");
+            println!("Prefix part is {prefix:#?} and it is unknown");
             return ok_html("Invalid request...".to_string());
         }
     }
+}
 
-    todo!();
-    // ok_html(format!("Headers: {headers:#?}, <br> Path: {path:#?} <br>"))
+
+
+#[derive(Debug, Clone, derive_more::Display, From, Into, FromStr, Deref, DerefMut)]
+pub struct APIPrefix(String);
+#[derive(Debug, Clone, derive_more::Display, From, Into, FromStr, Deref, DerefMut)]
+pub struct APIAction(String);
+#[derive(Debug, EnumString, strum::Display, IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum PublicAPIActionName {
+    Login,
+    VerifySessionToken,
+}
+pub enum InternalAPIAction {
+    AddSubscribedUser,
+    DeleteSubscribedUser,
 }
 
 #[derive(Debug, Clone)]
-struct ParsedPath {
-    prefix: String,
-    action: String,
+struct APIPath {
+    prefix: APIPrefix,
+    action: APIAction,
 }
-fn parse_path(path: &str) -> Option<ParsedPath> {
+fn parse_path(path: &str) -> Option<APIPath> {
     let parts: Vec<&str> = path.trim_start_matches("/").splitn(2, '/').collect();
     match parts.as_slice() {
-        [prefix, action] => Some(ParsedPath {
-            prefix: prefix.to_string(),
-            action: action.to_string(),
+        [prefix, action] => Some(APIPath {
+            prefix: APIPrefix(prefix.to_string()),
+            action: APIAction(action.to_string()),
         }),
         _ => None,
     }
 }
 async fn handle_public_api_call(
-    action: String,
+    action: PublicAPIActionName,
     request_data: HttpRequestData,
     db_pool: Pool<Postgres>,
     server_config: ServerConfig,
     app_config: AppConfig,
 ) -> HttpResponseData {
-    todo!();
+    match action {
+        PublicAPIActionName::Login => {
+            todo!()
+        },
+        PublicAPIActionName::VerifySessionToken => todo!(),
+    }
 }
 async fn handle_secret_api_call(
-    action: String,
+    action: APIAction,
     request_data: HttpRequestData,
     db_pool: Pool<Postgres>,
     server_config: ServerConfig,

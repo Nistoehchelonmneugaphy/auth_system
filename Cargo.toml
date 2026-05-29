@@ -8,6 +8,7 @@ app_config = { path = "workspace_crates/app_config" }
 serde = "1.0.228"
 sqlx = { version = "0.9.0", features = ["migrate", "postgres", "macros", "runtime-tokio", "time", "tls-rustls-aws-lc-rs"] }
 tracing = "0.1.44"
-
+derive_more = { version = "2.1.1", features = ["full"] }
+strum = { version = "0.28.0", features = ["derive"] }
 [workspace.package]
 version = "0.0.1"

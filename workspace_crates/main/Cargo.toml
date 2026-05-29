@@ -9,3 +9,5 @@ server = { workspace = true }
 sqlx = { workspace = true }
 app_config = { workspace = true }
 tokio = { version = "1.52.3", features = ["full", "tracing"] }
+derive_more = { workspace = true }
+strum = { workspace = true }
