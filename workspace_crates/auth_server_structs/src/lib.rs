@@ -37,6 +37,7 @@ pub mod public_api {
     pub struct LoginSuccess {
         pub token: String,
         pub username: String,
+        pub user_id: String,
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct LoginError {
