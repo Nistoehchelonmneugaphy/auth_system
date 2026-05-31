@@ -3,16 +3,22 @@ pub mod public_api {
     #[strum(serialize_all = "snake_case")]
     pub enum PublicAPIAction {
         Login,
-        ValidatePermission,
+        ValidateSessionToken,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct LoginRequest {
-        username: String,
-        password: String,
+        pub username: String,
+        pub password: String,
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct VerifySessionTokenRequest {
-        token: String,
+        pub token: String,
     }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct VerifySessionTokenResponse {
+        pub valid: bool,
+    }
+
+
 }

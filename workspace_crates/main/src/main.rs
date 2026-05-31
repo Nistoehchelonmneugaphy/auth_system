@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use auth_server_structs::public_api::PublicAPIAction;
+use auth_server_structs::public_api::{PublicAPIAction, VerifySessionTokenResponse};
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
@@ -9,7 +9,9 @@ use server::{
     config_reader::read_config,
     http_stuff::{
         http_request_parsing::HttpRequestData,
-        http_response::{HttpResponseData, ok_html},
+        http_response::{
+            Charset::Utf8, ContentType::ApplicationJson, HttpResponseData, ok, ok_html,
+        },
     },
     server_config::ServerConfig,
 };
@@ -137,12 +139,67 @@ async fn handle_public_api_call(
                         return ok_html("Could not parse the request".to_string());
                     }
                 };
+            let input_password_hash = 
             todo!()
         }
-        PublicAPIAction::ValidatePermission => {
-            let session_token = request_data.headers.clone().get("x-session-token").unwrap_or_else(|| "");
-            
-        },
+        PublicAPIAction::ValidateSessionToken => {
+            let req: auth_server_structs::public_api::VerifySessionTokenRequest =
+                match serde_json::from_slice(&request_data.body_bytes) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        println!("{e:#?}");
+                        return ok_html("Could not parse the request".to_string());
+                    }
+                };
+            let session_token = req.token;
+            match sqlx::query!(
+                "SELECT token, user_id, expires_at_timestamp FROM session_tokens WHERE token = $1",
+                session_token
+            )
+            .fetch_optional(&db_pool)
+            .await
+            {
+                Ok(Some(td)) => {
+                    let expiry = td.expires_at_timestamp;
+                    let Ok(expiry) = u64::try_from(expiry) else {
+                        println!("Parse error");
+                        return ok_html("Some error".to_string());
+                    };
+                    let Ok(curr_timestamp) = std::time::SystemTime::UNIX_EPOCH
+                        .elapsed()
+                        .map(|d| d.as_secs())
+                    else {
+                        return ok_html("Error".to_string());
+                    };
+
+                    let valid = expiry > curr_timestamp;
+                    let resp = VerifySessionTokenResponse { valid };
+                    let bytes = match serde_json::to_vec(&resp) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            println!("{e:#?}");
+                            return ok_html("Error.".to_string());
+                        }
+                    };
+                    return ok(bytes, ApplicationJson, Some(Utf8));
+                }
+                Ok(None) => {
+                    let resp = VerifySessionTokenResponse { valid: false };
+                    let bytes = match serde_json::to_vec(&resp) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            println!("{e:#?}");
+                            return ok_html("Error.".to_string());
+                        }
+                    };
+                    return ok(bytes, ApplicationJson, Some(Utf8));
+                }
+                Err(e) => {
+                    println!("DB Error: {e:#?}");
+                    return ok_html("Some error has occurred.".to_string());
+                }
+            }
+        }
     }
 }
 async fn handle_internal_api_call(
