@@ -205,7 +205,7 @@ async fn handle_public_api_call(
                             .fetch_one(&db_pool)
                             .await
                         );
-                    LoginResponse::Success(LoginSuccess { token: row.token })
+                    LoginResponse::Success(LoginSuccess { token: row.token, username: req.username })
                     }
                     false => sub_expired_resp.clone(),
                 },

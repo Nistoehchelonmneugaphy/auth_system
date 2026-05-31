@@ -36,6 +36,7 @@ pub mod public_api {
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct LoginSuccess {
         pub token: String,
+        pub username: String,
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct LoginError {
@@ -64,12 +65,3 @@ pub mod public_api {
     }
 }
  
- /*
- 
-  curl -X POST http://localhost:55555/public/login -H "content-type: application/json" -d '{"username": "test", "password": "11111111111"}'
-  password 11111111111 (11 ones)
-  curl -X POST http://localhost:55555/secret_prefix_123/add_or_update_user -H "content-type: application/json" -d '{"username": "test", "password_hash": "$argon2id$v=19$m=16000,t=2,p=2$Zs3HqI3ykNBixwG4OK7TEZJo8Vb2rTAI0m8VPAvGwaXYImxBUxcY27NmXPOO/sr0$kLDLHR33Z/FtobDJWN7P2Wl0yWDtoI2LlVqlde3yvnc", "user_id": "id123", "subscription_expires_at_timestamp":99999999999}' -H "x-api-key: key_123"
-
-  invalid test:
-    curl -X POST http://localhost:55555/public/login -H "content-type: application/json" -d '{"username": "test", "password": "34324e11"}'
-  */
