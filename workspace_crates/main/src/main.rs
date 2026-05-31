@@ -9,7 +9,6 @@ use auth_server_structs::{
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
-use password_hashing::{PasswordHasherConfig, PasswordHasherConfigParams};
 use server::{
     BackgroundSpawnTasks,
     config_reader::read_config,
@@ -183,15 +182,6 @@ async fn handle_public_api_call(
             let resp = match password_validation {
                 true => match subscription_active {
                     true => {
-                        let password_hash =
-                            ok_or_return_error_msg!(password_hashing::hash_password(
-                                req.password.clone(),
-                                PasswordHasherConfig::new(PasswordHasherConfigParams {
-                                    memory_cost: 16000,
-                                    time_cost: 4,
-                                    parallelism_cost: 4
-                                })
-                            ));
                         const ONE_DAY: u64 = 60 * 60 * 24;
                         let expires_at_timestamp = ok_or_return_error_msg!(i64::try_from(
                             (ok_or_return_error_msg!(current_timestamp()) + ONE_DAY)
@@ -203,15 +193,13 @@ async fn handle_public_api_call(
     SELECT
         gen_random_uuid()::text,
         u.user_id,
-        $3
+        $2
     FROM users u
     WHERE u.username = $1
-      AND u.password_hash = $2
       AND u.subscription_expires_at_timestamp > extract(epoch from now())::bigint
     RETURNING token, user_id
     "#,
-                                req.username,         
-                                password_hash,        
+                                req.username,               
                                 expires_at_timestamp  
                             )
                             .fetch_one(&db_pool)
