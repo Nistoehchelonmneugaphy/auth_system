@@ -1,12 +1,15 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::SystemTimeError};
 
 use auth_server_structs::{
     internal_api::{AddOrUpdateUserResponse, InternalAPIAction},
-    public_api::{LoginResponse, PublicAPIAction, VerifySessionTokenResponse},
+    public_api::{
+        LoginError, LoginErrorKind, LoginResponse, LoginSuccess, PublicAPIAction, VerifySessionTokenResponse
+    },
 };
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
+use password_hashing::{PasswordHasherConfig, PasswordHasherConfigParams};
 use server::{
     BackgroundSpawnTasks,
     config_reader::read_config,
@@ -147,23 +150,26 @@ async fn handle_public_api_call(
 ) -> HttpResponseData {
     match public_action {
         PublicAPIAction::Login => {
+            let invalid_creds_resp = LoginResponse::Error(LoginError {
+                kind: LoginErrorKind::InvalidCredentials,
+            });
+            let sub_expired_resp = LoginResponse::Error(LoginError {
+                kind: LoginErrorKind::SubscriptionExpired,
+            });
             let req: auth_server_structs::public_api::LoginRequest =
                 ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
             let user_data = ok_or_return_error_msg!(sqlx::query!("SELECT user_id, password_hash, subscription_expires_at_timestamp FROM users WHERE username = $1", req.username).fetch_optional(&db_pool).await);
             let user_data = match user_data {
                 Some(ud) => ud,
                 None => {
-                    let resp = LoginResponse {
-                        credentials_valid: false,
-                        subscription_active: false,
-                    };
+                    let resp = invalid_creds_resp.clone();
                     let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
                 }
             };
 
             let password_validation = ok_or_return_error_msg!(password_hashing::verify_password(
-                req.password,
+                req.password.clone(),
                 user_data.password_hash
             ));
             let curr_timestamp = ok_or_return_error_msg!(
@@ -174,9 +180,48 @@ async fn handle_public_api_call(
             let subscription_expires_at_timestamp =
                 ok_or_return_error_msg!(u64::try_from(user_data.subscription_expires_at_timestamp));
             let subscription_active = subscription_expires_at_timestamp > curr_timestamp;
-            let resp = LoginResponse {
-                credentials_valid: password_validation,
-                subscription_active,
+            let resp = match password_validation {
+                true => match subscription_active {
+                    true => {
+                        let password_hash =
+                            ok_or_return_error_msg!(password_hashing::hash_password(
+                                req.password.clone(),
+                                PasswordHasherConfig::new(PasswordHasherConfigParams {
+                                    memory_cost: 16000,
+                                    time_cost: 4,
+                                    parallelism_cost: 4
+                                })
+                            ));
+                        const ONE_DAY: u64 = 60 * 60 * 24;
+                        let expires_at_timestamp = ok_or_return_error_msg!(i64::try_from(
+                            (ok_or_return_error_msg!(current_timestamp()) + ONE_DAY)
+                        ));
+                        let row = ok_or_return_error_msg!(
+                            sqlx::query!(
+                                r#"
+    INSERT INTO session_tokens (token, user_id, expires_at_timestamp)
+    SELECT
+        gen_random_uuid()::text,
+        u.user_id,
+        $3
+    FROM users u
+    WHERE u.username = $1
+      AND u.password_hash = $2
+      AND u.subscription_expires_at_timestamp > extract(epoch from now())::bigint
+    RETURNING token, user_id
+    "#,
+                                req.username,         // $1
+                                password_hash,        // $2 — pass the already-hashed value
+                                expires_at_timestamp  // $3 — e.g. now + 30 days in epoch seconds
+                            )
+                            .fetch_one(&db_pool) // None if credentials wrong or subscription expired
+                            .await
+                        );
+                    LoginResponse::Success(LoginSuccess { token: row.token })
+                    }
+                    false => sub_expired_resp.clone(),
+                },
+                false => invalid_creds_resp.clone(),
             };
             let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
             return ok(bytes, ApplicationJson, Some(Utf8));
@@ -254,4 +299,10 @@ async fn handle_internal_api_call(
             return ok(bytes, ApplicationJson, Some(Utf8));
         }
     }
+}
+
+fn current_timestamp() -> Result<u64, SystemTimeError> {
+    std::time::SystemTime::UNIX_EPOCH
+        .elapsed()
+        .map(|d| d.as_secs())
 }

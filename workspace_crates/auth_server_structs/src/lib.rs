@@ -5,7 +5,6 @@ pub mod internal_api {
         AddOrUpdateUser,
     }
 
-    
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct AddOrUpdateUserRequest {
         pub user_id: String,
@@ -33,11 +32,28 @@ pub mod public_api {
         pub username: String,
         pub password: String,
     }
+
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub struct LoginResponse {
-        pub credentials_valid: bool,
-        pub subscription_active: bool,
+    pub struct LoginSuccess {
+        pub token: String,
     }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct LoginError {
+        pub kind: LoginErrorKind,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum LoginErrorKind {
+        InvalidCredentials,
+        SubscriptionExpired,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum LoginResponse {
+        Success(LoginSuccess),
+        Error(LoginError),
+    }
+
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct VerifySessionTokenRequest {
         pub token: String,
