@@ -142,8 +142,8 @@ async fn handle_public_api_call(
     public_action: PublicAPIAction,
     request_data: HttpRequestData,
     db_pool: Pool<Postgres>,
-    server_config: ServerConfig,
-    app_config: AppConfig,
+    _server_config: ServerConfig,
+    _app_config: AppConfig,
 ) -> HttpResponseData {
     match public_action {
         PublicAPIAction::Login => {
@@ -223,8 +223,8 @@ async fn handle_internal_api_call(
     internal_action: InternalAPIAction,
     request_data: HttpRequestData,
     db_pool: Pool<Postgres>,
-    server_config: ServerConfig,
-    app_config: AppConfig,
+    _server_config: ServerConfig,
+    _app_config: AppConfig,
 ) -> HttpResponseData {
     match internal_action {
         InternalAPIAction::AddOrUpdateUser => {
