@@ -148,7 +148,19 @@ async fn handle_public_api_call(
         PublicAPIAction::Login => {
             let req: auth_server_structs::public_api::LoginRequest =
                 ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
-            let user_data = ok_or_return_error_msg!(sqlx::query!("SELECT user_id, password_hash, subscription_expires_at_timestamp FROM users WHERE username = $1", req.username).fetch_one(&db_pool).await);
+            let user_data = ok_or_return_error_msg!(sqlx::query!("SELECT user_id, password_hash, subscription_expires_at_timestamp FROM users WHERE username = $1", req.username).fetch_optional(&db_pool).await);
+            let user_data = match user_data {
+                Some(ud) => ud,
+                None => {
+                    let resp = LoginResponse {
+                        credentials_valid: false,
+                        subscription_active: false,
+                    };
+                    let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
+                    return ok(bytes, ApplicationJson, Some(Utf8));
+                }
+            };
+
             let password_validation = ok_or_return_error_msg!(password_hashing::verify_password(
                 req.password,
                 user_data.password_hash
