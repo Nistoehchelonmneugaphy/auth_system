@@ -139,17 +139,10 @@ async fn handle_public_api_call(
                 };
             todo!()
         }
-        PublicAPIAction::VerifySessionToken => {
-            let req: auth_server_structs::public_api::VerifySessionTokenRequest =
-                match serde_json::from_slice(&request_data.body_bytes) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        println!("{e:#?}");
-                        return ok_html("Could not parse the request".to_string());
-                    }
-                };
-            todo!()
-        }
+        PublicAPIAction::ValidatePermission => {
+            let session_token = request_data.headers.clone().get("x-session-token").unwrap_or_else(|| "");
+            
+        },
     }
 }
 async fn handle_internal_api_call(

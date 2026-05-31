@@ -3,7 +3,7 @@ pub mod public_api {
     #[strum(serialize_all = "snake_case")]
     pub enum PublicAPIAction {
         Login,
-        VerifySessionToken,
+        ValidatePermission,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
