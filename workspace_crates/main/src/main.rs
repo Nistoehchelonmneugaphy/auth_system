@@ -210,11 +210,11 @@ async fn handle_public_api_call(
       AND u.subscription_expires_at_timestamp > extract(epoch from now())::bigint
     RETURNING token, user_id
     "#,
-                                req.username,         // $1
-                                password_hash,        // $2 — pass the already-hashed value
-                                expires_at_timestamp  // $3 — e.g. now + 30 days in epoch seconds
+                                req.username,         
+                                password_hash,        
+                                expires_at_timestamp  
                             )
-                            .fetch_one(&db_pool) // None if credentials wrong or subscription expired
+                            .fetch_one(&db_pool)
                             .await
                         );
                     LoginResponse::Success(LoginSuccess { token: row.token })
