@@ -228,14 +228,17 @@ async fn handle_internal_api_call(
 ) -> HttpResponseData {
     match internal_action {
         InternalAPIAction::AddOrUpdateUser => {
-            let req: auth_server_structs::internal_api::AddOrUpdateUserRequest =
-                ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes), "Failed to shape the json req into struct");
+            let req: auth_server_structs::internal_api::AddOrUpdateUserRequest = ok_or_return_error_msg!(
+                serde_json::from_slice(&request_data.body_bytes),
+                "Failed to shape the json req into struct"
+            );
             let subscription_expires_at_timestamp =
                 ok_or_return_error_msg!(i64::try_from(req.subscription_expires_at_timestamp));
             let user_data = ok_or_return_error_msg!(
                 sqlx::query!("SELECT user_id FROM users WHERE user_id = $1", req.user_id)
                     .fetch_optional(&db_pool)
-                    .await, "DB Err"
+                    .await,
+                "DB Err"
             );
             let resp = match user_data {
                 None => {
