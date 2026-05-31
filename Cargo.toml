@@ -3,6 +3,7 @@ resolver = "3"
 members = ["workspace_crates/*"]
 
 [workspace.dependencies]
+password_hashing = { git = "ssh://git@github.com/Aeroel/password_hashing.git"  }
 server = { git = "ssh://git@github.com/Aeroel/server_2_only.git"}
 app_config = { path = "workspace_crates/app_config" }
 auth_server_structs = { path = "workspace_crates/auth_server_structs" }

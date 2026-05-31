@@ -14,3 +14,4 @@ tokio = { version = "1.52.3", features = ["full", "tracing"] }
 derive_more = { workspace = true }
 strum = { workspace = true }
 auth_server_structs = { workspace = true }
+password_hashing = { workspace = true }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use auth_server_structs::public_api::{PublicAPIAction, VerifySessionTokenResponse};
+use auth_server_structs::public_api::{LoginResponse, PublicAPIAction, VerifySessionTokenResponse};
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
@@ -16,6 +16,21 @@ use server::{
     server_config::ServerConfig,
 };
 use sqlx::{Pool, Postgres};
+
+macro_rules! ok_or_return_error_msg {
+    ($expr:expr $(, $msg:expr)?) => {
+        match $expr {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Err: {e:#?}");
+                $(
+                    println!("Msg: {:#?}", $msg);
+                )?
+                return server::http_stuff::http_response::ok_html("Error".to_string());
+            }
+        }
+    };
+}
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> std::io::Result<()> {
@@ -132,15 +147,26 @@ async fn handle_public_api_call(
     match public_action {
         PublicAPIAction::Login => {
             let req: auth_server_structs::public_api::LoginRequest =
-                match serde_json::from_slice(&request_data.body_bytes) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        println!("{e:#?}");
-                        return ok_html("Could not parse the request".to_string());
-                    }
-                };
-            let input_password_hash = 
-            todo!()
+                ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
+            let user_data = ok_or_return_error_msg!(sqlx::query!("SELECT user_id, password_hash, subscription_expires_at_timestamp FROM users WHERE username = $1", req.username).fetch_one(&db_pool).await);
+            let password_validation = ok_or_return_error_msg!(password_hashing::verify_password(
+                req.password,
+                user_data.password_hash
+            ));
+            let curr_timestamp = ok_or_return_error_msg!(
+                std::time::SystemTime::UNIX_EPOCH
+                    .elapsed()
+                    .map(|d| d.as_secs())
+            );
+            let subscription_expires_at_timestamp =
+                ok_or_return_error_msg!(u64::try_from(user_data.subscription_expires_at_timestamp));
+            let subscription_active = subscription_expires_at_timestamp > curr_timestamp;
+            let resp = LoginResponse {
+                credentials_valid: password_validation,
+                subscription_active,
+            };
+            let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
+            return ok(bytes, ApplicationJson, Some(Utf8));
         }
         PublicAPIAction::ValidateSessionToken => {
             let req: auth_server_structs::public_api::VerifySessionTokenRequest =
@@ -161,37 +187,21 @@ async fn handle_public_api_call(
             {
                 Ok(Some(td)) => {
                     let expiry = td.expires_at_timestamp;
-                    let Ok(expiry) = u64::try_from(expiry) else {
-                        println!("Parse error");
-                        return ok_html("Some error".to_string());
-                    };
-                    let Ok(curr_timestamp) = std::time::SystemTime::UNIX_EPOCH
-                        .elapsed()
-                        .map(|d| d.as_secs())
-                    else {
-                        return ok_html("Error".to_string());
-                    };
+                    let expiry = ok_or_return_error_msg!(u64::try_from(expiry));
+                    let curr_timestamp = ok_or_return_error_msg!(
+                        std::time::SystemTime::UNIX_EPOCH
+                            .elapsed()
+                            .map(|d| d.as_secs())
+                    );
 
                     let valid = expiry > curr_timestamp;
                     let resp = VerifySessionTokenResponse { valid };
-                    let bytes = match serde_json::to_vec(&resp) {
-                        Ok(b) => b,
-                        Err(e) => {
-                            println!("{e:#?}");
-                            return ok_html("Error.".to_string());
-                        }
-                    };
+                    let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
                 }
                 Ok(None) => {
                     let resp = VerifySessionTokenResponse { valid: false };
-                    let bytes = match serde_json::to_vec(&resp) {
-                        Ok(b) => b,
-                        Err(e) => {
-                            println!("{e:#?}");
-                            return ok_html("Error.".to_string());
-                        }
-                    };
+                    let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
                 }
                 Err(e) => {

@@ -2,7 +2,7 @@ CREATE TABLE "users" (
   "primary_key" bigserial NOT NULL,
   "user_id" text NOT NULL,
   "username" text NOT NULL,
-  "password" text NOT NULL,
+  "password_hash" text NOT NULL,
   "subscription_expires_at_timestamp" bigint NOT NULL,
   PRIMARY KEY ("primary_key"),
   UNIQUE ("user_id")

@@ -12,6 +12,11 @@ pub mod public_api {
         pub password: String,
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct LoginResponse {
+        pub credentials_valid: bool,
+        pub subscription_active: bool,
+    }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct VerifySessionTokenRequest {
         pub token: String,
     }
