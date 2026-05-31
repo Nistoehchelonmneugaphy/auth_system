@@ -69,7 +69,7 @@ async fn route(
     let APIPath { prefix, action } = match parts {
         Some(p) => p,
         None => {
-            return ok_html("Invalid request...".to_string());
+            return ok_html("Invalid parts...".to_string());
         }
     };
     match prefix.as_str() {
@@ -128,7 +128,8 @@ struct APIPath {
     action: APIAction,
 }
 fn parse_path(path: &str) -> Option<APIPath> {
-    let parts: Vec<&str> = path.trim_start_matches("/").splitn(1, '/').collect();
+    let parts: Vec<&str> = path.trim_start_matches("/").splitn(2, '/').collect();
+    println!("{parts:#?}");
     match parts.as_slice() {
         [prefix, action] => Some(APIPath {
             prefix: APIPrefix(prefix.to_string()),
