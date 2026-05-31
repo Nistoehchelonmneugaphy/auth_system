@@ -1,3 +1,25 @@
+pub mod internal_api {
+    #[derive(Debug, strum::EnumString, strum::Display, strum::IntoStaticStr)]
+    #[strum(serialize_all = "snake_case")]
+    pub enum InternalAPIAction {
+        AddOrUpdateUser,
+    }
+
+    
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct AddOrUpdateUserRequest {
+        pub user_id: String,
+        pub username: String,
+        pub password_hash: String,
+        pub subscription_expires_at_timestamp: u64,
+    }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum AddOrUpdateUserResponse {
+        Added,
+        Updated,
+    }
+}
+
 pub mod public_api {
     #[derive(Debug, strum::EnumString, strum::Display, strum::IntoStaticStr)]
     #[strum(serialize_all = "snake_case")]
@@ -24,6 +46,4 @@ pub mod public_api {
     pub struct VerifySessionTokenResponse {
         pub valid: bool,
     }
-
-
 }

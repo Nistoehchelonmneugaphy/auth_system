@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use auth_server_structs::public_api::{LoginResponse, PublicAPIAction, VerifySessionTokenResponse};
+use auth_server_structs::{
+    internal_api::{AddOrUpdateUserResponse, InternalAPIAction},
+    public_api::{LoginResponse, PublicAPIAction, VerifySessionTokenResponse},
+};
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
@@ -74,13 +77,7 @@ async fn route(
     };
     match prefix.as_str() {
         "public" => {
-            let public_action = match action.parse() {
-                Ok(pa) => pa,
-                Err(e) => {
-                    println!("Could not parse action {action:#?}: {e:#?}");
-                    return ok_html("Invalid action".to_string());
-                }
-            };
+            let public_action = ok_or_return_error_msg!(action.parse(), "Invalid action");
             return handle_public_api_call(
                 public_action,
                 request_data.clone(),
@@ -98,7 +95,10 @@ async fn route(
             if !api_key_valid {
                 return ok_html("Invalid API key".to_string());
             }
+            let internal_action =
+                ok_or_return_error_msg!(action.parse(), "Invalid internal action");
             return handle_internal_api_call(
+                internal_action,
                 request_data.clone(),
                 db_pool.clone(),
                 server_config.clone(),
@@ -183,13 +183,7 @@ async fn handle_public_api_call(
         }
         PublicAPIAction::ValidateSessionToken => {
             let req: auth_server_structs::public_api::VerifySessionTokenRequest =
-                match serde_json::from_slice(&request_data.body_bytes) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        println!("{e:#?}");
-                        return ok_html("Could not parse the request".to_string());
-                    }
-                };
+                ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
             let session_token = req.token;
             match sqlx::query!(
                 "SELECT token, user_id, expires_at_timestamp FROM session_tokens WHERE token = $1",
@@ -226,10 +220,35 @@ async fn handle_public_api_call(
     }
 }
 async fn handle_internal_api_call(
+    internal_action: InternalAPIAction,
     request_data: HttpRequestData,
     db_pool: Pool<Postgres>,
     server_config: ServerConfig,
     app_config: AppConfig,
 ) -> HttpResponseData {
-    todo!();
+    match internal_action {
+        InternalAPIAction::AddOrUpdateUser => {
+            let req: auth_server_structs::internal_api::AddOrUpdateUserRequest =
+                ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes), "Failed to shape the json req into struct");
+            let subscription_expires_at_timestamp =
+                ok_or_return_error_msg!(i64::try_from(req.subscription_expires_at_timestamp));
+            let user_data = ok_or_return_error_msg!(
+                sqlx::query!("SELECT user_id FROM users WHERE user_id = $1", req.user_id)
+                    .fetch_optional(&db_pool)
+                    .await, "DB Err"
+            );
+            let resp = match user_data {
+                None => {
+                    ok_or_return_error_msg!(sqlx::query!("INSERT INTO users (user_id, username, password_hash, subscription_expires_at_timestamp) VALUES ($1, $2, $3, $4)", req.user_id, req.username, req.password_hash, subscription_expires_at_timestamp).execute(&db_pool).await);
+                    AddOrUpdateUserResponse::Added
+                }
+                Some(_) => {
+                    ok_or_return_error_msg!(sqlx::query!("UPDATE users SET username = $1, password_hash = $2, subscription_expires_at_timestamp = $3 WHERE user_id = $4", req.username, req.password_hash, subscription_expires_at_timestamp, req.user_id).execute(&db_pool).await);
+                    AddOrUpdateUserResponse::Updated
+                }
+            };
+            let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
+            return ok(bytes, ApplicationJson, Some(Utf8));
+        }
+    }
 }
