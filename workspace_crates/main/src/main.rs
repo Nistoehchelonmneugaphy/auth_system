@@ -9,6 +9,7 @@ use auth_system_structs::{
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
 
 use app_config::AppConfig;
+use password_hashing::{PasswordHasherConfig, PasswordHasherConfigParams};
 use server::{
     BackgroundSpawnTasks,
     config_reader::read_config,
@@ -286,6 +287,15 @@ async fn handle_internal_api_call(
             let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
             return ok(bytes, ApplicationJson, Some(Utf8));
         }
+        InternalAPIAction::AddTestUserWithPlaintextPassword => {
+             let req: auth_system_structs::internal_api::AddTestUserWithPlaintextPasswordRequest = ok_or_return_error_msg!(
+                serde_json::from_slice(&request_data.body_bytes),
+                "Failed to shape the json req into struct"
+            );
+            let password_hash = ok_or_return_error_msg!(password_hashing::hash_password(req.password, get_a_password_hasher_config()));
+            ok_or_return_error_msg!(sqlx::query!("INSERT INTO users (user_id, username, password_hash, subscription_expires_at_timestamp) VALUES (gen_random_uuid()::text, $1, $2, $3)",  req.username, password_hash, 999999999999).execute(&db_pool).await);
+            todo!();
+        },
     }
 }
 
@@ -293,4 +303,9 @@ fn current_timestamp() -> Result<u64, SystemTimeError> {
     std::time::SystemTime::UNIX_EPOCH
         .elapsed()
         .map(|d| d.as_secs())
+}
+
+
+fn get_a_password_hasher_config() -> PasswordHasherConfig {
+    PasswordHasherConfig::new(PasswordHasherConfigParams { memory_cost: 16000, time_cost: 2, parallelism_cost: 2 })
 }

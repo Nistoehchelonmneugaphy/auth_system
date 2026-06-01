@@ -1,9 +1,9 @@
-
 pub mod internal_api {
     #[derive(Debug, strum::EnumString, strum::Display, strum::IntoStaticStr)]
     #[strum(serialize_all = "snake_case")]
     pub enum InternalAPIAction {
         AddOrUpdateUser,
+        AddTestUserWithPlaintextPassword,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -17,6 +17,15 @@ pub mod internal_api {
     pub enum AddOrUpdateUserResponse {
         Added,
         Updated,
+    }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct AddTestUserWithPlaintextPasswordRequest {
+        pub username: String,
+        pub password: String,
+    }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum AddTestUserWithPlaintextPasswordResponse {
+        Added,
     }
 }
 
@@ -69,4 +78,3 @@ pub mod public_api {
         pub valid: bool,
     }
 }
- 
