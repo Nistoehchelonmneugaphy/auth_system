@@ -1,3 +1,4 @@
+
 pub mod internal_api {
     #[derive(Debug, strum::EnumString, strum::Display, strum::IntoStaticStr)]
     #[strum(serialize_all = "snake_case")]
@@ -20,6 +21,9 @@ pub mod internal_api {
 }
 
 pub mod public_api {
+    pub fn get_full_url(auth_server_url: String, api_action: PublicAPIAction) -> String {
+        format!("{auth_server_url}/public/{}", api_action.to_string())
+    }
     #[derive(Debug, strum::EnumString, strum::Display, strum::IntoStaticStr)]
     #[strum(serialize_all = "snake_case")]
     pub enum PublicAPIAction {
