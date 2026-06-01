@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::SystemTimeError};
 
 use auth_system_structs::{
-    internal_api::{AddOrUpdateUserResponse, InternalAPIAction},
+    internal_api::{AddOrUpdateUserResponse, AddTestUserWithPlaintextPasswordResponse, InternalAPIAction::{self}},
     public_api::{
         LoginError, LoginErrorKind, LoginResponse, LoginSuccess, PublicAPIAction, VerifySessionTokenResponse
     },
@@ -294,7 +294,10 @@ async fn handle_internal_api_call(
             );
             let password_hash = ok_or_return_error_msg!(password_hashing::hash_password(req.password, get_a_password_hasher_config()));
             ok_or_return_error_msg!(sqlx::query!("INSERT INTO users (user_id, username, password_hash, subscription_expires_at_timestamp) VALUES (gen_random_uuid()::text, $1, $2, $3)",  req.username, password_hash, 999999999999).execute(&db_pool).await);
-            todo!();
+            let resp = AddTestUserWithPlaintextPasswordResponse::Added;
+            let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
+            return ok(bytes, ApplicationJson, Some(Utf8));
+            
         },
     }
 }
