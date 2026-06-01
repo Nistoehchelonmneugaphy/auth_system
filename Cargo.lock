@@ -70,7 +70,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "auth_server_structs"
+name = "auth_system_structs"
 version = "0.0.1"
 dependencies = [
  "serde",
@@ -1030,7 +1030,7 @@ name = "main"
 version = "0.0.1"
 dependencies = [
  "app_config",
- "auth_server_structs",
+ "auth_system_structs",
  "derive_more",
  "dotenvy",
  "password_hashing",

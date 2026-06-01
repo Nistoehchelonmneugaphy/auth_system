@@ -1,5 +1,5 @@
 [package]
-name = "auth_server_structs"
+name = "auth_system_structs"
 edition = "2024"
 version.workspace = true
 

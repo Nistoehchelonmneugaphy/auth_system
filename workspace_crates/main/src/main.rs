@@ -1,6 +1,6 @@
 use std::{path::PathBuf, time::SystemTimeError};
 
-use auth_server_structs::{
+use auth_system_structs::{
     internal_api::{AddOrUpdateUserResponse, InternalAPIAction},
     public_api::{
         LoginError, LoginErrorKind, LoginResponse, LoginSuccess, PublicAPIAction, VerifySessionTokenResponse
@@ -155,7 +155,7 @@ async fn handle_public_api_call(
             let sub_expired_resp = LoginResponse::Error(LoginError {
                 kind: LoginErrorKind::SubscriptionExpired,
             });
-            let req: auth_server_structs::public_api::LoginRequest =
+            let req: auth_system_structs::public_api::LoginRequest =
                 ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
             let user_data = ok_or_return_error_msg!(sqlx::query!("SELECT user_id, password_hash, subscription_expires_at_timestamp FROM users WHERE username = $1", req.username).fetch_optional(&db_pool).await);
             let user_data = match user_data {
@@ -215,7 +215,7 @@ async fn handle_public_api_call(
             return ok(bytes, ApplicationJson, Some(Utf8));
         }
         PublicAPIAction::ValidateSessionToken => {
-            let req: auth_server_structs::public_api::VerifySessionTokenRequest =
+            let req: auth_system_structs::public_api::VerifySessionTokenRequest =
                 ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
             let session_token = req.token;
             match sqlx::query!(
@@ -261,7 +261,7 @@ async fn handle_internal_api_call(
 ) -> HttpResponseData {
     match internal_action {
         InternalAPIAction::AddOrUpdateUser => {
-            let req: auth_server_structs::internal_api::AddOrUpdateUserRequest = ok_or_return_error_msg!(
+            let req: auth_system_structs::internal_api::AddOrUpdateUserRequest = ok_or_return_error_msg!(
                 serde_json::from_slice(&request_data.body_bytes),
                 "Failed to shape the json req into struct"
             );
