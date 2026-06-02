@@ -38,7 +38,7 @@ pub mod public_api {
     pub enum PublicAPIAction {
         Login,
         ValidateSessionToken,
-        GetJoinToken,
+        CreateJoinToken,
         ValidateJoinToken,
     }
 
@@ -80,30 +80,30 @@ pub mod public_api {
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub struct GetJoinTokenRequest {
+    pub struct CreateJoinTokenRequest {
         pub session_token: String,
         pub server_nonce: String,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub enum GetJoinTokenResponse {
-        Success(GetJoinTokenSuccess),
-        Error(GetJoinTokenError),
+    pub enum CreateJoinTokenResponse {
+        Success(CreateJoinTokenSuccess),
+        Error(CreateJoinTokenError),
     }
 
 
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub struct GetJoinTokenSuccess {
+    pub struct CreateJoinTokenSuccess {
         pub join_token: String,
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub struct GetJoinTokenError {
-        pub kind: GetJoinTokenErrorKind,
+    pub struct CreateJoinTokenError {
+        pub kind: CreateJoinTokenErrorKind,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub enum GetJoinTokenErrorKind {
+    pub enum CreateJoinTokenErrorKind {
         InvalidSessionToken,
     }
 

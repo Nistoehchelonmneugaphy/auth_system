@@ -6,9 +6,9 @@ use auth_system_structs::{
         InternalAPIAction::{self},
     },
     public_api::{
-        GetJoinTokenError, GetJoinTokenErrorKind,
-        GetJoinTokenResponse::{self, Success},
-        GetJoinTokenSuccess, LoginError, LoginErrorKind, LoginResponse, LoginSuccess,
+        CreateJoinTokenError, CreateJoinTokenErrorKind,
+        CreateJoinTokenResponse::{self, Success},
+        CreateJoinTokenSuccess, LoginError, LoginErrorKind, LoginResponse, LoginSuccess,
         PublicAPIAction::{self},
         ValidateJoinTokenResponse, VerifySessionTokenResponse,
     },
@@ -251,8 +251,8 @@ async fn handle_public_api_call(
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
             return ok(bytes, ApplicationJson, Some(Utf8));
         }
-        PublicAPIAction::GetJoinToken => {
-            let req: auth_system_structs::public_api::GetJoinTokenRequest =
+        PublicAPIAction::CreateJoinToken => {
+            let req: auth_system_structs::public_api::CreateJoinTokenRequest =
                 ok_or_return_error_http_resp!(serde_json::from_slice(&request_data.body_bytes));
             let session_token = req.session_token;
             // first of all, validate the session_token
@@ -261,8 +261,8 @@ async fn handle_public_api_call(
 
             match validate_session_token(db_pool.clone(), session_token.clone()).await {
                 Err(_) => {
-                    let resp = GetJoinTokenResponse::Error(GetJoinTokenError {
-                        kind: GetJoinTokenErrorKind::InvalidSessionToken,
+                    let resp = CreateJoinTokenResponse::Error(CreateJoinTokenError {
+                        kind: CreateJoinTokenErrorKind::InvalidSessionToken,
                     });
                     let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
@@ -271,7 +271,7 @@ async fn handle_public_api_call(
                     let join_token = ok_or_return_error_http_resp!(
                         create_join_token(db_pool.clone(), t, req.server_nonce).await
                     );
-                    let resp = Success(GetJoinTokenSuccess { join_token });
+                    let resp = Success(CreateJoinTokenSuccess { join_token });
                     let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
                 }
