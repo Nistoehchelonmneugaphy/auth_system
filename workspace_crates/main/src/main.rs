@@ -1,9 +1,15 @@
 use std::{path::PathBuf, time::SystemTimeError};
 
 use auth_system_structs::{
-    internal_api::{AddOrUpdateUserResponse, AddTestUserWithPlaintextPasswordResponse, InternalAPIAction::{self}},
+    internal_api::{
+        AddOrUpdateUserResponse, AddTestUserWithPlaintextPasswordResponse,
+        InternalAPIAction::{self},
+    },
     public_api::{
-        LoginError, LoginErrorKind, LoginResponse, LoginSuccess, PublicAPIAction, VerifySessionTokenResponse
+        GetJoinTokenError, GetJoinTokenErrorKind,
+        GetJoinTokenResponse::{self, Success},
+        GetJoinTokenSuccess, LoginError, LoginErrorKind, LoginResponse, LoginSuccess,
+        PublicAPIAction, VerifySessionTokenResponse,
     },
 };
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
@@ -33,6 +39,20 @@ macro_rules! ok_or_return_error_msg {
                     println!("Msg: {:#?}", $msg);
                 )?
                 return server::http_stuff::http_response::ok_html("Error".to_string());
+            }
+        }
+    };
+}
+macro_rules! ok_or_return_err_string {
+    ($expr:expr $(, $msg:expr)?) => {
+        match $expr {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Err: {e:#?}");
+                $(
+                    println!("Msg: {:#?}", $msg);
+                )?
+                return Err(String::from("Error"));
             }
         }
     };
@@ -200,13 +220,17 @@ async fn handle_public_api_call(
       AND u.subscription_expires_at_timestamp > extract(epoch from now())::bigint
     RETURNING token, user_id
     "#,
-                                req.username,               
-                                expires_at_timestamp  
+                                req.username,
+                                expires_at_timestamp
                             )
                             .fetch_one(&db_pool)
                             .await
                         );
-                    LoginResponse::Success(LoginSuccess { token: row.token, username: req.username, user_id: row.user_id })
+                        LoginResponse::Success(LoginSuccess {
+                            token: row.token,
+                            username: req.username,
+                            user_id: row.user_id,
+                        })
                     }
                     false => sub_expired_resp.clone(),
                 },
@@ -219,38 +243,40 @@ async fn handle_public_api_call(
             let req: auth_system_structs::public_api::VerifySessionTokenRequest =
                 ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
             let session_token = req.token;
-            match sqlx::query!(
-                "SELECT token, user_id, expires_at_timestamp FROM session_tokens WHERE token = $1",
-                session_token
-            )
-            .fetch_optional(&db_pool)
-            .await
-            {
-                Ok(Some(td)) => {
-                    let expiry = td.expires_at_timestamp;
-                    let expiry = ok_or_return_error_msg!(u64::try_from(expiry));
-                    let curr_timestamp = ok_or_return_error_msg!(
-                        std::time::SystemTime::UNIX_EPOCH
-                            .elapsed()
-                            .map(|d| d.as_secs())
-                    );
+            let _session_token_validation = ok_or_return_error_msg!(
+                validate_session_token(db_pool.clone(), session_token.clone()).await
+            );
+            let resp = VerifySessionTokenResponse { valid: true };
+            let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
+            return ok(bytes, ApplicationJson, Some(Utf8));
+        }
+        PublicAPIAction::GetJoinToken => {
+            let req: auth_system_structs::public_api::GetJoinTokenRequest =
+                ok_or_return_error_msg!(serde_json::from_slice(&request_data.body_bytes));
+            let session_token = req.session_token;
+            // first of all, validate the session_token
+            // then insert a new join token, linking it with the server nonce and the session token.
+            // return the join token.
 
-                    let valid = expiry > curr_timestamp;
-                    let resp = VerifySessionTokenResponse { valid };
+            match validate_session_token(db_pool.clone(), session_token.clone()).await {
+                Err(_) => {
+                    let resp = GetJoinTokenResponse::Error(GetJoinTokenError {
+                        kind: GetJoinTokenErrorKind::InvalidSessionToken,
+                    });
                     let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
                 }
-                Ok(None) => {
-                    let resp = VerifySessionTokenResponse { valid: false };
+                Ok(t) => {
+                    let join_token = ok_or_return_error_msg!(
+                        create_join_token(db_pool.clone(), t, req.server_nonce).await
+                    );
+                    let resp = Success(GetJoinTokenSuccess { join_token });
                     let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
                     return ok(bytes, ApplicationJson, Some(Utf8));
-                }
-                Err(e) => {
-                    println!("DB Error: {e:#?}");
-                    return ok_html("Some error has occurred.".to_string());
                 }
             }
         }
+        PublicAPIAction::ValidateJoinToken => todo!(),
     }
 }
 async fn handle_internal_api_call(
@@ -288,17 +314,19 @@ async fn handle_internal_api_call(
             return ok(bytes, ApplicationJson, Some(Utf8));
         }
         InternalAPIAction::AddTestUserWithPlaintextPassword => {
-             let req: auth_system_structs::internal_api::AddTestUserWithPlaintextPasswordRequest = ok_or_return_error_msg!(
+            let req: auth_system_structs::internal_api::AddTestUserWithPlaintextPasswordRequest = ok_or_return_error_msg!(
                 serde_json::from_slice(&request_data.body_bytes),
                 "Failed to shape the json req into struct"
             );
-            let password_hash = ok_or_return_error_msg!(password_hashing::hash_password(req.password, get_a_password_hasher_config()));
+            let password_hash = ok_or_return_error_msg!(password_hashing::hash_password(
+                req.password,
+                get_a_password_hasher_config()
+            ));
             ok_or_return_error_msg!(sqlx::query!("INSERT INTO users (user_id, username, password_hash, subscription_expires_at_timestamp) VALUES (gen_random_uuid()::text, $1, $2, $3)",  req.username, password_hash, 999999999999).execute(&db_pool).await);
             let resp = AddTestUserWithPlaintextPasswordResponse::Added;
             let bytes = ok_or_return_error_msg!(serde_json::to_vec(&resp));
             return ok(bytes, ApplicationJson, Some(Utf8));
-            
-        },
+        }
     }
 }
 
@@ -308,7 +336,67 @@ fn current_timestamp() -> Result<u64, SystemTimeError> {
         .map(|d| d.as_secs())
 }
 
-
 fn get_a_password_hasher_config() -> PasswordHasherConfig {
-    PasswordHasherConfig::new(PasswordHasherConfigParams { memory_cost: 16000, time_cost: 2, parallelism_cost: 2 })
+    PasswordHasherConfig::new(PasswordHasherConfigParams {
+        memory_cost: 16000,
+        time_cost: 2,
+        parallelism_cost: 2,
+    })
+}
+
+#[derive(Clone, Debug)]
+struct ValidSessionToken(String);
+
+async fn validate_session_token(
+    db_pool: Pool<Postgres>,
+    session_token: String,
+) -> Result<ValidSessionToken, String> {
+    let valid = match sqlx::query!(
+        "SELECT token, user_id, expires_at_timestamp FROM session_tokens WHERE token = $1",
+        session_token
+    )
+    .fetch_optional(&db_pool)
+    .await
+    {
+        Ok(Some(td)) => {
+            let expiry = td.expires_at_timestamp;
+            let expiry = ok_or_return_err_string!(u64::try_from(expiry));
+            let curr_timestamp = ok_or_return_err_string!(
+                std::time::SystemTime::UNIX_EPOCH
+                    .elapsed()
+                    .map(|d| d.as_secs())
+            );
+
+            expiry > curr_timestamp
+        }
+        Ok(None) => false,
+        Err(e) => {
+            println!("DB Error: {e:#?}");
+            return ok_or_return_err_string!(Err("DB Error"));
+        }
+    };
+    match valid {
+        true => Ok(ValidSessionToken(session_token)),
+        false => return Err("Invalid token".to_string()),
+    }
+}
+
+async fn create_join_token(
+    db_pool: Pool<Postgres>,
+    session_token: ValidSessionToken,
+    server_nonce: String,
+) -> Result<String, String> {
+    let row = ok_or_return_err_string!(
+        sqlx::query!(
+            "INSERT INTO join_tokens (server_nonce, session_token, join_token)
+     VALUES ($1, $2, gen_random_uuid()::text)
+     RETURNING join_token",
+            server_nonce,
+            session_token.0
+        )
+        .fetch_one(&db_pool)
+        .await
+    );
+    let join_token = row.join_token;
+    Ok(join_token)
 }

@@ -38,12 +38,19 @@ pub mod public_api {
     pub enum PublicAPIAction {
         Login,
         ValidateSessionToken,
+        GetJoinToken,
+        ValidateJoinToken,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct LoginRequest {
         pub username: String,
         pub password: String,
+    }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum LoginResponse {
+        Success(LoginSuccess),
+        Error(LoginError),
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -64,17 +71,54 @@ pub mod public_api {
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub enum LoginResponse {
-        Success(LoginSuccess),
-        Error(LoginError),
-    }
-
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct VerifySessionTokenRequest {
         pub token: String,
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct VerifySessionTokenResponse {
+        pub valid: bool,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct GetJoinTokenRequest {
+        pub session_token: String,
+        pub server_nonce: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum GetJoinTokenResponse {
+        Success(GetJoinTokenSuccess),
+        Error(GetJoinTokenError),
+    }
+
+
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct GetJoinTokenSuccess {
+        pub join_token: String,
+    }
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct GetJoinTokenError {
+        pub kind: GetJoinTokenErrorKind,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub enum GetJoinTokenErrorKind {
+        InvalidSessionToken,
+    }
+
+
+// ----------------------
+
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct ValidateJoinTokenRequest {
+        pub join_token: String,
+        pub server_nonce: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct ValidateJoinTokenResponse {
         pub valid: bool,
     }
 }
