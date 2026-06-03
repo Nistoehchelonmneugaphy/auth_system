@@ -303,8 +303,8 @@ async fn handle_public_api_call(
                 .await
             );
             let resp = match row {
-                Some(r) => {
-                    let user_id = r.user_id;
+                Some(row) => {
+                    let user_id = row.user_id;
                     ValidateJoinTokenResponse::Valid(ValidateJoinTokenSuccess { user_id })
                 }
                 None => ValidateJoinTokenResponse::Invalid,
