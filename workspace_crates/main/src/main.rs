@@ -10,7 +10,7 @@ use auth_system_structs::{
         CreateJoinTokenResponse::{self, Success},
         CreateJoinTokenSuccess, LoginError, LoginErrorKind, LoginResponse, LoginSuccess,
         PublicAPIAction::{self},
-        ValidateJoinTokenResponse, VerifySessionTokenResponse,
+        ValidateJoinTokenResponse, ValidateJoinTokenSuccess, VerifySessionTokenResponse,
     },
 };
 use derive_more::{Deref, DerefMut, From, FromStr, Into};
@@ -289,10 +289,25 @@ async fn handle_public_api_call(
                 ok_or_return_error_http_resp!(serde_json::from_slice(&request_data.body_bytes));
             let join_token = req.join_token;
             let server_nonce = req.server_nonce;
-            let row = ok_or_return_error_http_resp!(sqlx::query!("SELECT primary_key FROM join_tokens WHERE join_token = $1 AND server_nonce = $2", join_token, server_nonce).fetch_optional(&db_pool).await);
+            let row = ok_or_return_error_http_resp!(
+                sqlx::query!(
+                    "SELECT jt.primary_key, u.user_id
+         FROM join_tokens jt
+         JOIN session_tokens st ON st.token = jt.session_token
+         JOIN users u ON u.user_id = st.user_id
+         WHERE jt.join_token = $1 AND jt.server_nonce = $2",
+                    join_token,
+                    server_nonce
+                )
+                .fetch_optional(&db_pool)
+                .await
+            );
             let resp = match row {
-                Some(_) => ValidateJoinTokenResponse { valid: true },
-                None => ValidateJoinTokenResponse { valid: false },
+                Some(r) => {
+                    let user_id = r.user_id;
+                    ValidateJoinTokenResponse::Valid(ValidateJoinTokenSuccess { user_id })
+                }
+                None => ValidateJoinTokenResponse::Invalid,
             };
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
             return ok(bytes, ApplicationJson, Some(Utf8));
