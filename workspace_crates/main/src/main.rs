@@ -63,6 +63,7 @@ macro_rules! ok_or_return_err_string {
 async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().ok();
     let app_config = read_config::<AppConfig>(PathBuf::from(".env"));
+    let app_config_clone_for_run = app_config.clone();
     let db_pool = sqlx::PgPool::connect(&app_config.database_url)
         .await
         .expect("I expected pool construction to succeed :)");
@@ -72,7 +73,13 @@ async fn main() -> std::io::Result<()> {
             let app_config = app_config.clone();
             Box::pin(async move { route(request_data, db_pool, server_config, app_config).await })
         });
+    let server_config = ServerConfig::new(
+        app_config_clone_for_run.ip,
+        app_config_clone_for_run.port,
+        app_config_clone_for_run.rust_log_directory_path,
+    );
     server::run(
+        server_config,
         env!("CARGO_PKG_VERSION").to_string(),
         handler,
         BackgroundSpawnTasks {
