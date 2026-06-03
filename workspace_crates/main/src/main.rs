@@ -288,7 +288,7 @@ async fn handle_public_api_call(
             let server_nonce = req.server_nonce;
             let row = ok_or_return_error_http_resp!(
                 sqlx::query!(
-                    "SELECT jt.primary_key, u.user_id
+                    "SELECT jt.primary_key, u.user_id, u.username
          FROM join_tokens jt
          JOIN session_tokens st ON st.token = jt.session_token
          JOIN users u ON u.user_id = st.user_id
@@ -302,7 +302,8 @@ async fn handle_public_api_call(
             let resp = match row {
                 Some(row) => {
                     let user_id = row.user_id;
-                    ValidateJoinTokenResponse::Valid(ValidateJoinTokenSuccess { user_id })
+                    let username = row.username;
+                    ValidateJoinTokenResponse::Valid(ValidateJoinTokenSuccess { user_id, username })
                 }
                 None => ValidateJoinTokenResponse::Invalid,
             };

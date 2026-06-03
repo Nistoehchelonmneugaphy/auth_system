@@ -124,6 +124,7 @@ pub mod public_api {
     }
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct  ValidateJoinTokenSuccess {
-        pub user_id: String
+        pub user_id: String,
+        pub username: String,
     }
 }
