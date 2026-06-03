@@ -18,15 +18,12 @@ use derive_more::{Deref, DerefMut, From, FromStr, Into};
 use app_config::AppConfig;
 use password_hashing::{PasswordHasherConfig, PasswordHasherConfigParams};
 use server::{
-    BackgroundSpawnTasks,
-    config_reader::read_config,
-    http_stuff::{
+    BackgroundSpawnTasks, HandlerFn, config_reader::read_config, http_stuff::{
         http_request_parsing::HttpRequestData,
         http_response::{
             Charset::Utf8, ContentType::ApplicationJson, HttpResponseData, ok, ok_html,
         },
-    },
-    server_config::ServerConfig,
+    }, server_config::ServerConfig
 };
 use sqlx::{Pool, Postgres};
 
@@ -67,8 +64,8 @@ async fn main() -> std::io::Result<()> {
     let db_pool = sqlx::PgPool::connect(&app_config.database_url)
         .await
         .expect("I expected pool construction to succeed :)");
-    let handler: server::run::HandlerFn =
-        std::sync::Arc::new(move |request_data, server_config| {
+    let handler: server::HandlerFn =
+        HandlerFn::new(move |request_data, server_config| {
             let db_pool = db_pool.clone();
             let app_config = app_config.clone();
             Box::pin(async move { route(request_data, db_pool, server_config, app_config).await })
