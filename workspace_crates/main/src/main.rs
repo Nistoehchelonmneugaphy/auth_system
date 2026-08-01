@@ -18,12 +18,15 @@ use derive_more::{Deref, DerefMut, From, FromStr, Into};
 use app_config::AppConfig;
 use password_hashing::{PasswordHasherConfig, PasswordHasherConfigParams};
 use server::{
-    BackgroundSpawnTasks, HandlerFn, config_reader::read_config, http_stuff::{
+    HandlerFn, ServerBuilder,
+    config_reader::read_config,
+    http_stuff::{
         http_request_parsing::HttpRequestData,
         http_response::{
             Charset::Utf8, ContentType::ApplicationJson, HttpResponseData, ok, ok_html,
         },
-    }, server_config::ServerConfig
+    },
+    server_config::ServerConfig,
 };
 use sqlx::{Pool, Postgres};
 
@@ -64,26 +67,23 @@ async fn main() -> std::io::Result<()> {
     let db_pool = sqlx::PgPool::connect(&app_config.database_url)
         .await
         .expect("I expected pool construction to succeed :)");
-    let handler: server::HandlerFn =
-        HandlerFn::new(move |request_data, server_config| {
-            let db_pool = db_pool.clone();
-            let app_config = app_config.clone();
-            Box::pin(async move { route(request_data, db_pool, server_config, app_config).await })
-        });
+    let handler: server::HandlerFn = HandlerFn::new(move |request_data, server_config| {
+        let db_pool = db_pool.clone();
+        let app_config = app_config.clone();
+        Box::pin(async move { route(request_data, db_pool, server_config, app_config).await })
+    });
     let server_config = ServerConfig::new(
         app_config_clone_for_run.ip,
         app_config_clone_for_run.port,
         app_config_clone_for_run.rust_log_directory_path,
     );
-    server::run(
+
+    ServerBuilder::new(
         server_config,
         env!("CARGO_PKG_VERSION").to_string(),
         handler,
-        BackgroundSpawnTasks {
-            new_tasks_to_spawn: None,
-            cancellation_token: None,
-        },
     )
+    .run_handler()
     .await
 }
 

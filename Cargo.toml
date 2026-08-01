@@ -7,8 +7,8 @@ password_hashing = { git = "ssh://git@github.com/Aeroel/password_hashing.git"  }
 server = { git = "ssh://git@github.com/Aeroel/server_2_only.git"}
 app_config = { path = "workspace_crates/app_config" }
 auth_system_structs = { path = "workspace_crates/auth_system_structs" }
-serde = { version = "1.0.228", features = ["derive"]}
-serde_json = "1.0.150"
+serde = { version = "1.0.229", features = ["derive"]}
+serde_json = "1.0.151"
 sqlx = { version = "0.9.0", features = ["migrate", "postgres", "macros", "runtime-tokio", "time", "tls-rustls-aws-lc-rs"] }
 tracing = "0.1.44"
 derive_more = { version = "2.1.1", features = ["full"] }
