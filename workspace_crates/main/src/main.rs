@@ -106,14 +106,14 @@ async fn route(
     match prefix.as_str() {
         "public" => {
             let public_action = ok_or_return_error_http_resp!(action.parse(), "Invalid action");
-            return handle_public_api_call(
+            handle_public_api_call(
                 public_action,
                 request_data.clone(),
                 db_pool.clone(),
                 server_config.clone(),
                 app_config.clone(),
             )
-            .await;
+            .await
         }
         p if p == app_config.secret_api_prefix => {
             let api_key_valid = verify_api_key(
@@ -125,18 +125,18 @@ async fn route(
             }
             let internal_action =
                 ok_or_return_error_http_resp!(action.parse(), "Invalid internal action");
-            return handle_internal_api_call(
+            handle_internal_api_call(
                 internal_action,
                 request_data.clone(),
                 db_pool.clone(),
                 server_config.clone(),
                 app_config.clone(),
             )
-            .await;
+            .await
         }
         _ => {
             println!("Prefix part is {prefix:#?} and it is unknown");
-            return ok_html("Invalid request...".to_string());
+            ok_html("Invalid request...".to_string())
         }
     }
 }
@@ -210,7 +210,7 @@ async fn handle_public_api_call(
                     true => {
                         const ONE_DAY: u64 = 60 * 60 * 24;
                         let expires_at_timestamp = ok_or_return_error_http_resp!(i64::try_from(
-                            (ok_or_return_error_http_resp!(current_timestamp()) + ONE_DAY)
+                            ok_or_return_error_http_resp!(current_timestamp()) + ONE_DAY
                         ));
                         let row = ok_or_return_error_http_resp!(
                             sqlx::query!(
@@ -242,7 +242,7 @@ async fn handle_public_api_call(
                 false => invalid_creds_resp.clone(),
             };
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-            return ok(bytes, ApplicationJson, Some(Utf8));
+            ok(bytes, ApplicationJson, Some(Utf8))
         }
         PublicAPIAction::ValidateSessionToken => {
             let req: auth_system_structs::public_api::VerifySessionTokenRequest =
@@ -253,7 +253,7 @@ async fn handle_public_api_call(
             );
             let resp = VerifySessionTokenResponse { valid: true };
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-            return ok(bytes, ApplicationJson, Some(Utf8));
+            ok(bytes, ApplicationJson, Some(Utf8))
         }
         PublicAPIAction::CreateJoinToken => {
             let req: auth_system_structs::public_api::CreateJoinTokenRequest =
@@ -269,7 +269,7 @@ async fn handle_public_api_call(
                         kind: CreateJoinTokenErrorKind::InvalidSessionToken,
                     });
                     let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-                    return ok(bytes, ApplicationJson, Some(Utf8));
+                    ok(bytes, ApplicationJson, Some(Utf8))
                 }
                 Ok(t) => {
                     let join_token = ok_or_return_error_http_resp!(
@@ -277,7 +277,7 @@ async fn handle_public_api_call(
                     );
                     let resp = Success(CreateJoinTokenSuccess { join_token });
                     let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-                    return ok(bytes, ApplicationJson, Some(Utf8));
+                    ok(bytes, ApplicationJson, Some(Utf8))
                 }
             }
         }
@@ -308,7 +308,7 @@ async fn handle_public_api_call(
                 None => ValidateJoinTokenResponse::Invalid,
             };
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-            return ok(bytes, ApplicationJson, Some(Utf8));
+            ok(bytes, ApplicationJson, Some(Utf8))
         }
     }
 }
@@ -344,7 +344,7 @@ async fn handle_internal_api_call(
                 }
             };
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-            return ok(bytes, ApplicationJson, Some(Utf8));
+            ok(bytes, ApplicationJson, Some(Utf8))
         }
         InternalAPIAction::AddTestUserWithPlaintextPassword => {
             let req: auth_system_structs::internal_api::AddTestUserWithPlaintextPasswordRequest = ok_or_return_error_http_resp!(
@@ -358,7 +358,7 @@ async fn handle_internal_api_call(
             ok_or_return_error_http_resp!(sqlx::query!("INSERT INTO users (user_id, username, password_hash, subscription_expires_at_timestamp) VALUES (gen_random_uuid()::text, $1, $2, $3)",  req.username, password_hash, 999999999999).execute(&db_pool).await);
             let resp = AddTestUserWithPlaintextPasswordResponse::Added;
             let bytes = ok_or_return_error_http_resp!(serde_json::to_vec(&resp));
-            return ok(bytes, ApplicationJson, Some(Utf8));
+            ok(bytes, ApplicationJson, Some(Utf8))
         }
     }
 }
@@ -410,7 +410,7 @@ async fn validate_session_token(
     };
     match valid {
         true => Ok(ValidSessionToken(session_token)),
-        false => return Err("Invalid token".to_string()),
+        false => Err("Invalid token".to_string()),
     }
 }
 
