@@ -3,8 +3,8 @@ resolver = "3"
 members = ["workspace_crates/*"]
 
 [workspace.dependencies]
-password_hashing = { git = "ssh://git@github.com/Aeroel/password_hashing.git"  }
-server = { git = "ssh://git@github.com/Aeroel/server_2_only.git"}
+password_hashing = { git = "ssh://git@github.com/Nistoehchelonmneugaphy/password_hashing.git"  }
+server = { git = "ssh://git@github.com/Nistoehchelonmneugaphy/server_2_only.git"}
 app_config = { path = "workspace_crates/app_config" }
 auth_system_structs = { path = "workspace_crates/auth_system_structs" }
 serde = { version = "1.0.229", features = ["derive"]}
